@@ -1,0 +1,3 @@
+[wokwi]
+elf="build/esp32-idf-hello-wifi.elf"
+firmware="build/esp32-idf-hello-wifi.bin"

@@ -1,0 +1,15 @@
+menu "WiFi App Configuration"
+
+  config ESP_WIFI_SSID
+      string "WiFi SSID"
+      default "Wokwi-GUEST"
+      help
+          WiFi SSID (network name)
+
+  config ESP_WIFI_PASSWORD
+      string "WiFi Password"
+      default ""
+      help
+          WiFi password (for WPA / WPA2)
+
+endmenu
