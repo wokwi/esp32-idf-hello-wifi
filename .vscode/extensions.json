@@ -1,5 +1,6 @@
 {
   "recommendations": [
-    "espressif.esp-idf-extension"
+    "espressif.esp-idf-extension",
+    "wokwi.wokwi-vscode"
   ]
 }

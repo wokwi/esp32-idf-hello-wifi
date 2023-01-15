@@ -8,7 +8,8 @@
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
 		"ms-vscode.cpptools",
-		"espressif.esp-idf-extension"
+		"espressif.esp-idf-extension",
+		"Wokwi.wokwi-vscode"
 	],
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workspaces,type=bind",
 	/* the path of workspace folder to be opened after container is running
