@@ -1,6 +1,8 @@
 name: Build and test
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  push:
 
 jobs:
   build-and-test:
@@ -13,11 +15,8 @@ jobs:
           esp_idf_version: v4.4
           target: esp32
           path: '.'
-      - name: Install the Wokwi CLI
-        run: |
-          wget -O /usr/local/bin/wokwi-cli https://github.com/wokwi/wokwi-cli/releases/latest/download/wokwi-cli-linuxstatic-x64
-          chmod +x /usr/local/bin/wokwi-cli
-      - name: Simulate and test the project
-        run: wokwi-cli --expect-text "any webserver online" --timeout 10000
-        env:
-          WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
+      - name: Test with Wokwi
+        uses: wokwi/wokwi-ci-action@v1
+        with:
+          token: ${{ secrets.WOKWI_CLI_TOKEN }}
+          expect_text: 'any webserver online'
