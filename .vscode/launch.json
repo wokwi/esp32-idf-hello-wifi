@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Wokwi GDB",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/esp32-idf-hello-wifi.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "${command:espIdf.getXtensaGdb}",
+      "miDebuggerServerAddress": "localhost:3333"
+    }
+  ]
+}

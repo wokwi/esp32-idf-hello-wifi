@@ -2,3 +2,5 @@
 version = 1
 elf = "build/esp32-idf-hello-wifi.elf"
 firmware = "build/esp32-idf-hello-wifi.bin"
+gdbServerPort=3333
+
