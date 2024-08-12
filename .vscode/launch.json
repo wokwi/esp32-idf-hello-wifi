@@ -8,7 +8,7 @@
       "program": "${workspaceFolder}/build/esp32-idf-hello-wifi.elf",
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
-      "miDebuggerPath": "${command:espIdf.getXtensaGdb}",
+      "miDebuggerPath": "${command:espIdf.getToolchainGdb}",
       "miDebuggerServerAddress": "localhost:3333"
     }
   ]
