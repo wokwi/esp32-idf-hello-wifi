@@ -12,11 +12,11 @@ jobs:
       - name: esp-idf build
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v4.4
+          esp_idf_version: v5.3
           target: esp32
           path: '.'
       - name: Test with Wokwi
         uses: wokwi/wokwi-ci-action@v1
         with:
           token: ${{ secrets.WOKWI_CLI_TOKEN }}
-          expect_text: 'any webserver online'
+          expect_text: 'any web server online'

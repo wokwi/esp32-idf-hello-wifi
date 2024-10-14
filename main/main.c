@@ -1,8 +1,8 @@
 /*|------------------------------------------------------------------------|*/
 /*|WiFi connection in STA mode for ESP32 under ESP-IDF - Wokwi simulator   |*/
 /*|Edited by: martinius96                                                  |*/
+/*|Updated for esp-idf 5.x by Uri Shaked                                   |*/
 /*|Buy me a coffee at: paypal.me/chlebovec for more examples               |*/
-/*|Tested under ESP-IDF v4.4.1                                             |*/
 /*|------------------------------------------------------------------------|*/
 
 #include <string.h>
@@ -15,7 +15,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-
+#include "esp_netif.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
@@ -31,27 +31,16 @@ static EventGroupHandle_t wifi_event_group;
 const int CONNECTED_BIT = BIT0;
 
 // WiFi event handler
-static esp_err_t event_handler(void *ctx, system_event_t *event)
-{
-  switch (event->event_id) {
-
-    case SYSTEM_EVENT_STA_START:
-      esp_wifi_connect();
-      break;
-
-    case SYSTEM_EVENT_STA_GOT_IP:
-      xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-      break;
-
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-      xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-      break;
-
-    default:
-      break;
+static void wifi_event_handler(void *arg, esp_event_base_t event_base,
+                               int32_t event_id, void *event_data) {
+  if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+    esp_wifi_connect();
+  } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+    xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
+    esp_wifi_connect();
+  } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+    xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
   }
-
-  return ESP_OK;
 }
 
 void led_config()
@@ -66,70 +55,83 @@ void led_task(void *pvParameter)
     if (xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) {
       // We are connected - LED on
       gpio_set_level(LED_RED, 1);
-      vTaskDelay(200 / portTICK_RATE_MS);
+      vTaskDelay(200 / portTICK_PERIOD_MS);
     } else {
       // We are connecting - blink fast
       gpio_set_level(LED_RED, 0);
-      vTaskDelay(200 / portTICK_RATE_MS);
+      vTaskDelay(200 / portTICK_PERIOD_MS);
       gpio_set_level(LED_RED, 1);
-      vTaskDelay(200 / portTICK_RATE_MS);
+      vTaskDelay(200 / portTICK_PERIOD_MS);
     }
   }
 }
 
 // Main task
-void main_task(void *pvParameter)
-{
-  tcpip_adapter_ip_info_t ip_info;
+void main_task(void *pvParameter) {
+  esp_netif_ip_info_t ip_info;
+
   // wait for connection
-  printf("Waiting for connection to the WiFi network... \n");
+  printf("Waiting for connection to the Wi-Fi network...\n");
   xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
   printf("Connected!\n");
 
-  // print the local IP address
-  ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
-  printf("IP Address:  %s\n", ip4addr_ntoa(&ip_info.ip));
-  printf("Subnet mask: %s\n", ip4addr_ntoa(&ip_info.netmask));
-  printf("Gateway:     %s\n", ip4addr_ntoa(&ip_info.gw));
-  printf("You can connect now to any webserver online! :-)\n");
+  // Get and print the local IP address
+  esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info);
+  printf("IP Address:  " IPSTR "\n", IP2STR(&ip_info.ip));
+  printf("Subnet mask: " IPSTR "\n", IP2STR(&ip_info.netmask));
+  printf("Gateway:     " IPSTR "\n", IP2STR(&ip_info.gw));
+  printf("You can connect now to any web server online! :-)\n");
 
   while (1) {
-    vTaskDelay(1000 / portTICK_RATE_MS);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
 
+// Main application
+void app_main() {
+  printf("\nESP-IDF version used: %s\n", IDF_VER);
 
-void app_main()
-{
   led_config();
 
-  printf("ESP-IDF version used: %s\n", IDF_VER);
+  // Initialize NVS
+  esp_err_t ret = nvs_flash_init();
+  if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    ret = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(ret);
 
-  // disable the default wifi logging
-  esp_log_level_set("wifi", ESP_LOG_NONE);
+  // Initialize the TCP/IP stack
+  esp_netif_init();
 
-  // initialize NVS
-  ESP_ERROR_CHECK(nvs_flash_init());
+  // Create the default event loop
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-  // create the event group to handle wifi events
+  // Create the default Wi-Fi station
+  esp_netif_create_default_wifi_sta();
+
+  // Create the event group to handle Wi-Fi events
   wifi_event_group = xEventGroupCreate();
 
   // The LED task is used to show the connection status
   xTaskCreate(&led_task, "led_task", 2048, NULL, 5, NULL);
 
-  // initialize the tcp stack
-  tcpip_adapter_init();
 
-  // initialize the wifi event handler
-  ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
-
-  // initialize the wifi stack in STAtion mode with config in RAM
+  // Initialize the Wi-Fi driver
   wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT();
   ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_config));
-  ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
-  // configure the wifi connection and start the interface
+  // Register event handlers
+  ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+                  ESP_EVENT_ANY_ID,
+                  &wifi_event_handler,
+                  NULL, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+                  IP_EVENT_STA_GOT_IP,
+                  &wifi_event_handler,
+                  NULL, NULL));
+
+  // Configure Wi-Fi connection settings
   wifi_config_t wifi_config = {
     .sta = {
       .ssid = WIFI_SSID,
@@ -137,9 +139,14 @@ void app_main()
     },
   };
 
-  // start the main task
-  xTaskCreate(&main_task, "main_task", 2048, NULL, 5, NULL);
+  // Set Wi-Fi mode to STA (Station)
+  ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+
+  // Start Wi-Fi
   ESP_ERROR_CHECK(esp_wifi_start());
-  printf("Connecting to %s...\n", WIFI_SSID);
+
+  // Start the main task
+  xTaskCreate(&main_task, "main_task", 2048, NULL, 5, NULL);
+  printf("Connecting to %s\n", WIFI_SSID);
 }
