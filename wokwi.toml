@@ -1,6 +1,6 @@
 [wokwi]
 version = 1
 elf = "build/esp32-idf-hello-wifi.elf"
-firmware = "build/esp32-idf-hello-wifi.bin"
+firmware = "build/flasher_args.json"
 gdbServerPort=3333
 
